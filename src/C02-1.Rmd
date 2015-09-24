@@ -1,0 +1,78 @@
+---
+output: html_document
+---
+
+
+
+####About Google Earth images
+The data sources of the Google Earth images are high-resolution imagery from satellites as well as in some cases aerial photographs.
+Google Earth images are free of charge and offer a high spatial resolution of few centimeters. 
+The images are often used as ancillary data source to digitize training sites for e.g. land cover classifications or are used as backround images in mapping. The RGB bands, however, might also be used as direct input for classifications.
+This tutorial shows how Google Earth images can be downloaded via R.
+
+####Download of the images
+First we load a polygon shapefile of Fogo which we use as template for the download of the images.
+```{r,echo=TRUE,results="hide"}
+library(rgdal)
+library(raster)
+library(dismo)
+template <- readOGR("D:/active/bis-fogo/school2015/data/remote-sensing/masks/fogo_polygon.shp",
+                    "fogo_polygon")
+```
+
+The dismo package has the function "gmap" which allows to download Google Earth images from within R.
+```{r,results="hide"}
+?gmap
+```
+As decribed on the help page, gmap requires a Spatial object ("x") as Input parameter to define the location of the Images. 
+The resulting image is then centered to the extent of this object.
+The "type" parameter needs to be changed to "satellite" in order to download Google Earth satellite images.
+The zoom argument can be changed according to the desired level of detail. Allowed values are 0 (the whole world) to 21 (very small area). The size arguments defines the size of the image in terms of columns and rows.
+
+Since the image is a RGB image, we can use the plotRGB function to depict the result. 
+
+```{r}
+google_image <- gmap(template, type='satellite', zoom=10, 
+                     rgb=TRUE, size=c(400, 400), lonlat=TRUE)
+#plotRGB(google_image)
+```
+
+####Create a high resolution Mosaic
+The detail decreases when a larger extent is used. If you want to create a high resolution image of the overall island you would need to download several tiles and afterwards merge them to one raster.
+Therefore, we can create for example 4 regular distributed points on the extent of Fogo, which we can iteratively use to download the Google tiles.
+
+```{r,include=FALSE}
+set.seed(10)
+```
+
+```{r}
+sample_points <- spsample(template, n = 9, "regular")
+plotRGB(google_image)
+plot(sample_points,col="red",add=T)
+```
+
+We can then download a highly detailes Google image using each point as a center coordinate.
+Setting scale=2 gives the best available resolution for the defined size and zoom level.
+We can save the images in a list "google_tiles".
+
+```{r}
+google_tiles<-list()
+for (i in 1:length(sample_points)){
+  google_tiles[[i]] <- gmap(sample_points[i,], type='satellite', 
+                           zoom=13, rgb=TRUE, size=c(640, 640), scale=2, lonlat=TRUE)
+}
+```
+
+To create a mosaic we can use the mosaic function from the raster package which merges the single tiles.
+The tolerance argument is important to account for different origins of the tiles. 
+
+```{r}
+mosaic_image <- mosaic(google_tiles[[1]], google_tiles[[2]], google_tiles[[3]], 
+                       google_tiles[[4]], google_tiles[[5]], google_tiles[[6]],
+                       google_tiles[[7]], google_tiles[[8]], google_tiles[[9]], 
+                       fun=mean, tolerance=1)
+plotRGB(mosaic_image)
+```
+
+Now we created a higher resolution Google image of Fogo. The resolution can be even more increased 
+when more images are downloaded with a even higher zoom level.

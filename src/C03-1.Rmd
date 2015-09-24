@@ -1,0 +1,50 @@
+---
+output: html_document
+---
+#### Introduction
+
+Projections are a very important topic when working with spatial data (either in R or in any other GIS software).
+R, in contrast to proper GIS software, is not able to do on the fly projections. Therefore, you must be careful in each case, that all of your data feature the same reference system
+
+```{r}
+library(raster)
+library(rgdal)
+```
+
+#### Where to find information about the reference system
+For all spatial objects, the reference system is shown when the object is printed:
+```{r, include=FALSE}
+dem <- raster("/home/hanna/Documents/Lehre/kapVerde/dem_fogo.tif")
+```
+
+```{r, echo=FALSE}
+dem
+```
+
+#### Define Projections
+If, for any reason, the reference system is known, but is not specified in the Spatial object, you need to assign it to the object.
+You can find the information for your reference system on www.spatialreference.org. Each reference system is defined by a unique EPSG code. You can either assign the correct projection using the proj4string which decribes the reference system or simply use the epsg code. Be careful: Assigning a projection does not change the geometry! The coordinates remain the same, only the information about the coordinates is changing.
+```{r, eval=FALSE}
+  ###use the proj4string
+  proj4string(dem) <- CRS("+proj=lcc +lat_1=15 +lat_2=16.66666666666667 +lat_0=15.83333333333333 +lon_0=-24 +x_0=161587.83 +y_0=128511.202 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
+  ###or use the epsg code:
+  proj4string(dem) <- CRS("+init=epsg:4826")
+```
+#### Reproject Spatial Data
+If you like to change the reference system of your data use the "projectRaster" command for raster data or the "spTransform" command for vector data.
+
+```{r}
+  #e.g with nearest neighbor method:
+  newproj="+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
+  dem_proj <- projectRaster(dem, crs=newproj,method="ngb")
+  print(dem_proj)
+```
+Note that the coordinates changed, as well as the information of the reference system.
+
+```{r, echo=FALSE}
+  par(mfrow=c(1,2),
+          oma = c(5,4,0,0) + 0.1,
+          mar = c(1,1,1,5) + 0.1)
+  plot(dem,main="epsg 4826",asp=0,legend=FALSE)
+  plot(dem_proj, main="epsg 4326",asp=0)
+```

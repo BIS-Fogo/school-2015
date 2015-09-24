@@ -1,0 +1,101 @@
+---
+output: html_document
+---
+#### Introduction
+
+This tutorial gives some basic ideas about how to work with Raster data in R. As example, a digital evelation model from Fogo is used. 
+In general, most functions which are available in ArcGIS, QGIS and so on are also available in R. 
+
+The most important package to work with rasters in R is the "raster" package. To handle projections, "rgdal" is necessary as well.
+
+```{r}
+library(raster)
+library(rgdal)
+```
+
+###Load the data
+
+The easiest way to import a raster into R is to load a file which is already stored in a common raster format (e.g. tiff) on your computer
+
+```{r, echo=FALSE}
+dem <- raster("/home/hanna/Documents/Lehre/kapVerde/dem_fogo.tif")
+```
+
+```{r,eval=FALSE}
+dem <- raster("dem_fogo.tif")
+```
+
+### Explore the data
+The raster can be visualized using the normal plot function. The example in this tutorial is a digital elevation model of Fogo.
+
+```{r}
+plot(dem)
+```
+
+Use the following command to get all necessary information about your raster.
+
+```{r}
+print(dem)
+```
+
+### Crop a Raster
+A raster can be cropped in different ways. You can either specify coordinates, or use a template to crop the raster, or do it interactively.
+
+```{r, eval=FALSE}
+dem_cropped <- crop(dem, drawExtent()) #the interactive way
+```
+
+To do it in a reproduceable way, use coordinates instead of the interactive way
+
+```{r}
+dem_cropped <- crop(dem, c(114000,125000,26000,34000)) #use coordinates
+plot(dem_cropped)
+```
+
+### Calculations with Raster data
+You can do calculations with your raster in the same way as you use a calculator
+E.g.
+
+```{r, eval=FALSE}
+dem*2
+```
+
+This command multiplied each value of "dem" by 2.
+
+### Reclassifications
+A reclassification of the values can be done using the reclassify function.
+However first, a reclasstable needs to be created.
+The reclass table in the following example can be interpreted in the way that 
+all values from 0 to 1000 will become 1, all values from 1000 to 2000 will become 2 and all values between 2000 and 3000 will become 3. The result is a raster with only 3 classes. In this case, Fogo is classified according to its altitude.
+
+```{r}
+rcl<- c(0,1000,1, 1000,2000,2,2000,3000,3)
+dem_reclass <- reclassify(dem, rcl)
+```
+```{r,echo=FALSE}
+plot(dem_reclass)
+```
+
+
+### Calculate terrain characteristics
+The raster package in R has several functions for terrain analysis. the most common functions calculate the aspect, the slope and the water flow direction using a digital elevation model as input. 
+see ?terrain on how to interprete the flow direction.
+
+```{r}
+terr_characteristics <- terrain(dem, opt=c("slope","aspect","flowdir"),unit='degrees')
+print(terr_characteristics)
+plot(terr_characteristics)
+```
+
+Note that "terr_characteristics" is a RasterBrick which means that several bands of the same extent and resolution are stacked together (similar to the list concept in r). You can assess to the individual channels using the double squared brackets including the band number, e.g.
+
+```{r}
+terr_characteristics[[1]]
+```
+
+Finally, the results of the raster R processing can be stored on disk, e.g. for later processing also on other GIS software.
+Use the writeRaster command
+
+```{r, eval=FALSE}
+writeRaster(terr_characteristics[1], filename="slope.tif")
+```

@@ -1,0 +1,67 @@
+---
+output: html_document
+---
+
+The following examples are based on a data set from a 2002 field survey 
+by T. Leyens which has been funded by the Deutsche Gesellschaft für 
+Internationale Zusammenarbeit (GIZ). For more information, please refer to 
+[this report](http://www2.gtz.de/dokumente/bib/02-5082.pdf). 
+```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+library(sp)
+library(raster)
+library(rgdal)
+data_2007 <- readOGR(
+  "D:/active/bis-fogo/school2015/data/field-campaign_2002/procd/IE_2007_pontos_esp.shp",
+  "IE_2007_pontos_esp", stringsAsFactors = FALSE)
+data <- as.data.frame(data_2007)
+data$CYD_OBL <- as.numeric(data$CYD_OBL)
+data_with_species <- which(rowSums((data[,14:89]>0))>0)
+data <- data[data_with_species,]
+data_alt_error <- which(data$ALT_GPS_M==0)
+data <- data[-data_alt_error,]
+data_species <- data[,14:89]
+richness <- rowSums(data_species)
+occupancy <- colSums(data_species>0)
+species_considered <- which(occupancy>10)
+```
+
+
+Regarding libraries, the following packages are necessary.
+```{r, warning=FALSE}
+library(vegan)
+```
+
+#### Multivariate data mining
+Ordination analysis is a multivariate data mining method which reduces the 
+dimensionality of an ecological data set and re-arranges the reduced data values 
+onto a two dimensional space in such a way that potential relationship patterns 
+between the individual ecological information becomes as apparent as possible. 
+Therefore, common data reduction and transformation techniques like principal 
+component analysis, multi-dimensional scaling or correspondence analysis is used. 
+
+ Maybe the most commonly applied technique in ordination analysis is the 
+ correspondence analysis. It is heavily used to identify and delineate 
+ communities of species (i.e. groups of species which frequently occur together 
+ at one location). The correspondence analysis uses a Chi-square distance matrix 
+ as basis for its eigenalanysis. Therefore, the observed vs. expected values of 
+ each species at each location are computed following the commonly used 
+ Chi-square formula:
+
+`(observed value - expected value)2 / expected value`
+
+In addition, environmental factors can be considered as so called constraining 
+variables. 
+
+
+```{r}
+ordination<-cca(data_species ~ GRAU_EROS + SOLO + CAT_USO + DECL_GR + EXP_GR +
+                  MAT_ORG + ALT_GPS_M + GRAU_UTIL, data = data)
+plot(ordination)
+```
+
+
+In order to get an idea on the significance of the constraining variables, a simple
+analysis of variance (ANOVA) can be calculated using the ordination object.
+```{r}
+anova(ordination, by = "terms", permu = 999)
+```

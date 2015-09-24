@@ -1,0 +1,179 @@
+```{r opts, echo = FALSE, message = FALSE}
+## working directory
+setwd("/media/permanent/xchange/thomas/")
+
+## required package(s)
+if (!require(MODIS))
+  install.packages("http://download.r-forge.r-project.org/src/contrib/MODIS_0.10-33.tar.gz", 
+                   repos = NULL)
+
+library(MODIS)
+```
+
+
+#### Prerequisites
+
+The R **MODIS** package is a valuable set of functions to find, download and 
+process level-3 products from the **Mod**erate Resolution **I**maging 
+**S**pectroradiometer (MODIS) mounted aboard NASA's Terra and Aqua satellite 
+platforms. There is a comprehensive beginner's guide on 
+[Steven Mosher's Blog](https://stevemosher.wordpress.com/modis-tutorial/) that 
+describes how to successfully setup the **MODIS** package including all relevant 
+prerequisites and which you might want to have a look at. Prerequisites include
+
+* the [MODIS Reprojection Tool](https://lpdaac.usgs.gov/tools/modis_reprojection_tool) 
+to automatically process the acquired MODIS data and
+* [OSGeo4W](https://trac.osgeo.org/osgeo4w/) featuring all required GDAL 
+libraries.
+
+Once installed, the **MODIS** package will automatically check if all required 
+software packages are installed on your local machine and make suggestions in 
+case any of the two is missing. 
+  
+<br>  
+
+#### Installing the **MODIS** package
+Since it is not (yet) an official CRAN package, **MODIS** is currently hosted on 
+[R-Forge](https://r-forge.r-project.org/R/?group_id=1252). The latest package 
+version 0.10-33 can easily be installed using
+
+```{r install, eval = FALSE}
+## package url
+modis_url <- "http://download.r-forge.r-project.org/src/contrib/MODIS_0.10-33.tar.gz"
+
+## install package
+install.packages(modis_url, repos = NULL)
+```
+  
+<br>  
+
+#### Checking the **MODIS** installation  
+Before anything else, make sure all additionally required packages (the 
+so-called 'dependencies') are installed via 
+
+```{r deps}
+MODIS:::checkDeps()
+```
+
+If this operation fails, you will automatically be prompted to install whatever 
+packages are missing in order to solve this issue. Next, you should tell 
+**MODIS** where to store downloaded (`localArcPath`) and processed 
+(`outDirPath`) MODIS imagery. For the moment, let us save all downloaded data in 
+a subfolder of our current working directory named 'data' and all processed data 
+in a subfolder named 'data/processed'. 
+
+```{r modis_opts, eval = FALSE}
+## load required package without startup messages
+library(MODIS)
+
+## set output folders (messages disabled)
+MODISoptions(localArcPath = "data/", 
+             outDirPath = "data/processed/", 
+             quiet = TRUE)
+```
+
+There is also a function to check whether all of the above-mentioned external 
+software tools are installed and their system paths are set properly (Windows 
+sends its regards...). 
+
+```{r tools}
+MODIS:::checkTools()
+```
+
+If no further warnings occurred, then you are now ready to start. Well, 
+almost...
+
+<br>
+
+#### Sinusoidal tile grid
+Before launching a download, be advised that high-order MODIS products are 
+commonly subdivided into tiles based on the so-called 
+[Sinusoidal tile grid](http://modis-land.gsfc.nasa.gov/MODLAND_grid.html) (see 
+image below). Make sure to identify the coordinates (in **h**orizontal and 
+**v**ertical direction) of the tile you would like to process before commencing 
+with the actual data download - it will save you a lot of time!   
+
+![sinusoidal_tile_grid](http://modis-land.gsfc.nasa.gov/images/MODIS_sinusoidal_grid1.gif)
+
+<br> 
+
+#### Data download
+Right now, the package offers support for MODIS land products (distributed via 
+[LPDAAC](https://lpdaac.usgs.gov/) and [LAADS](https://ladsweb.nascom.nasa.gov/) 
+only. For a full list of available datasets, type `getProduct()`. For the 
+moment, let us download some 1-km resolution 16-day Terra-MODIS NDVI images 
+(product 'MOD13A2') from August 2015 over Cape Verde. You may possibly have 
+noticed alreaedy from the image above that Cape Verde is included in tile 
+h15v07. Here is a list of arguments you will need in the following. For more 
+detailed information, have a look at `?getHdf`.
+
+* `product`: MODIS product to be downloaded
+* `begin`: start date ("YYYY-MM-DD")
+* `end`: end date ("YYYY-MM-DD")
+* `tileH`: **h**orizontal coordinate of the desired MODIS tile
+* `tileV`: **v**ertical coordinate of the desired MODIS tile
+
+Alright, let us give it a try. Remember that an entire MODIS tile will be 
+downloaded, so this might take a few seconds.
+
+```{r download, message = FALSE}
+## download data
+getHdf(product = "MOD13A2", 
+       begin = "2015-08-01", end = "2015-08-14", 
+       tileH = 15, tileV = 7)
+```
+
+If everything worked fine, there should now be a file named
+'MODIS/MOD13A2.005/MOD13A2.A2015225.h16v07.005.2015243211134.hdf' in the 'data' 
+subfolder of your working directory.
+
+<br>
+
+#### (Download and) process data
+Unfortunatelly, MODIS data commonly come in .hdf format that most users are 
+rather unfamiliar with. Luckily, **MODIS** provides functionality to 
+automatically extract ordinary GeoTiff (.tif) images from the .hdf 
+container file. The referring function is called `runGdal` and works very 
+similar to the previous `getHdf` command. A quick look at `?runGdal` reveals 
+that this function supports even more specifiable arguments. Amongst those are
+
+* `SDSstring`: the desired scientific datasets (SDS) to extract; see e.g. 
+[the MOD13A2 product description](https://lpdaac.usgs.gov/dataset_discovery/modis/modis_products_table/mod13a2) 
+(tab 'Layers') for a detailed list of SDS that come with the product
+* `outProj`: the desired output projection
+* `job`: a job name which will be passed on to the subfolder in 'processed'
+
+We will set `SDSstring = "10000000000` since, for the moment, we are only 
+interested in the raw NDVI values. Furthermore, we will specify ordinary 
+'Latlong' (EPSG:4326) as output projection. Note that if you are willing to 
+download and extract MODIS data in one step, you may simply use `runGdal` 
+instead of `getHdf`. Alright, let's try this.
+
+```{r extract, message = FALSE}
+runGdal(product = "MOD13A2", 
+        begin = "2015-08-01", end = "2015-08-14", 
+        tileH = 15, tileV = 7, 
+        SDSstring = "10000000000", 
+        outProj = "4326", 
+        job = "ndvi_1km_16day",
+        quiet = TRUE)
+```
+
+<br>
+
+#### Wrap-up
+
+If everything worked out fine, there should now be a file named 
+'ndvi_1km_16day/MOD13A2.A2015225.1_km_16_days_NDVI.tif' in the 'data/processed' 
+subfolder. You may want to have a look at it using
+
+```{r visualize, message = FALSE}
+## import raster file
+rst <- raster("data/processed/ndvi_1km_16day/MOD13A2.A2015225.1_km_16_days_NDVI.tif")
+
+## visualize ndvi image (multiplied by scale factor)
+plot(rst * 0.0001, xlim = c(-25.5, -22.5), ylim = c(14.5, 17.5), 
+     zlim = c(-0.1, 1), colNA = "lightblue", 
+     xlab = "Longitude", ylab = "Latitude")
+
+```

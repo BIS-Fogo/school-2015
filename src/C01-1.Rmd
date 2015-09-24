@@ -1,0 +1,116 @@
+---
+output: html_document
+---
+
+The following examples are based on a data set from a 2002 field survey 
+by T. Leyens which has been funded by the Deutsche Gesellschaft für 
+Internationale Zusammenarbeit (GIZ). For more information, please refer to 
+[this report](http://www2.gtz.de/dokumente/bib/02-5082.pdf). 
+```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+library(sp)
+library(raster)
+library(rgdal)
+data_2007 <- readOGR(
+  "D:/active/bis-fogo/school2015/data/field-campaign_2007/procd/IE_2007_pontos_esp.shp",
+  "IE_2007_pontos_esp", stringsAsFactors = FALSE)
+data <- as.data.frame(data_2007)
+data$CYD_OBL <- as.numeric(data$CYD_OBL)
+data_with_species <- which(rowSums((data[,14:89]>0))>0)
+data <- data[data_with_species,]
+data_alt_error <- which(data$ALT_GPS_M==0)
+data <- data[-data_alt_error,]
+data_species <- data[,14:89]
+richness <- rowSums(data_species)
+occupancy <- colSums(data_species>0)
+species_considered <- which(occupancy>10)
+```
+
+
+Regarding libraries, the following packages are necessary.
+```{r, warning=FALSE}
+library(MuMIn)
+```
+
+
+#### Simple visualization and models
+In many cases, species richness changes along elevational gradients. Hence, a
+first analysis could check the relationship between richness and elevation.
+
+The following example first creates a scatter plot and then computes a
+linear and a loess (i.e. local polynomial regression) model. The predicted
+linear and polynomial functions are added to the scatter plot in blue and
+red color.
+
+Since the loess model is a polynomial function, individual y-axis values
+must be computed in a sufficient resolution in order to plot a "continuous" 
+line. Therefore, the model is used to predict the y-axis values (i.e. 
+species richness) for any full meter between the minimum and maximum elevation
+displayed in the scatter plot.
+
+
+```{r}
+# Create scatter plot
+plot(data$ALT_GPS_M,richness,
+      xlab="Elevation [m]",ylab="Plant species richness",pch=21,bg="grey")
+
+# Compute linear model
+model_linear <- lm(richness~data$ALT_GPS_M)
+
+# Add linear model to the scatter plot
+abline(model_linear,lwd=2,col="blue")
+
+
+# Compute loess model
+model_loess<-loess(richness~data$ALT_GPS_M)
+
+# Predict y-axis values of the loess model (explanation see above)
+predict_x <- seq(min(data$ALT_GPS_M), max(data$ALT_GPS_M))
+model_loess_predict <- predict(model_loess,newdata=predict_x)
+
+# Add predicted loess model to the scatter plot
+lines(predict_x,model_loess_predict,lwd=2,col="red")
+```
+
+
+#### Advanced model selection for explaining species richness
+A general problem with multiple variable models is overfitting. For example, the
+R-squared value will get larger and larger the more explanatory variables are
+included in the model equation (or at least R-squared will not decrease). If
+one chooses the model with the largest R-squared (i.e. with the most variables),
+the model might actually explain very much of the particular data sample used
+to train the model but the explanatory value might very likely be next to nothing
+if the model is applied to another sample. 
+
+Hence, the best model is not the one which explains most but which explains quite
+a lot with only a few variables. 
+
+While there are quite many approaches which can be used for training the best
+model (e.g. cross-validation or boot-strapping), the example below illustrates
+a model averaging approach where 256 unique linear models are built which 
+use a different (sub-)set of all explanatory variables available in the dataset.
+
+Applying such an automated model selection is quite easy. We will use the `dredge`
+function of the `MuMln` package and just pass our linear model 
+(which has been built using all available explanatory variables) to the function.
+
+Since the results from `dredge` are quite confusing in the first place, we
+apply a model averaging (function `model.avg`) afterwards and just look at a
+summarized output. As you can see, aside from returning information on the best 
+model using e.g. the AICc value (the best model has the smallest), 
+it also returns significance information for each of the explanatory variables. 
+```{r}
+# Build linear model which includes all available/relevant explanatory 
+#variables.
+model<-lm(richness ~ ALT_GPS_M + GRAU_EROS + SOLO + CAT_USO + DECL_GR + 
+            EXP_GR + MAT_ORG + GRAU_UTIL, data = data, na.action = "na.fail")
+
+# Perform a model selection iteration for the linear model defined above.
+model_selection <- dredge(model)
+
+# Average/aggregate the output of the model selection and summarize results.
+model_averaged <- model.avg(model_selection)
+summary(model_averaged)
+```
+In the case of the linear model approach above,
+the best model is the one which just uses ALT_GPS_M, CAT_USO and DECL_GR as 
+explanatory variables.

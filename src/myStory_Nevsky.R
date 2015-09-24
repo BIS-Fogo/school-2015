@@ -13,18 +13,26 @@ library(sp)
 
 
 ### Read data ##################################################################
+# Read meta-data
 nevsky_org_meta <- read.table("IE_2007_pontos_esp_meta.csv", 
                               sep = "\t", dec = ".", header = TRUE,
                               stringsAsFactors = FALSE)
 str(nevsky_org_meta)
 
+# Read GIS/field survey data
 nevsky_org_shp <- readOGR("IE_2007_pontos_esp.shp", 
                           layer = "IE_2007_pontos_esp")
 str(nevsky_org_shp)
 
+# Correct entries for CYD_OBL to be numeric
 nevsky_org_df <- data.frame(nevsky_org_shp)
 str(nevsky_org_df)
 nevsky_org_df$CYD_OBL <- as.numeric(as.character(nevsky_org_df$CYD_OBL))
+
+# Change all values in the species columns to 1 if the value of the respecitve
+# cell (i.e. observation plot) is at least 1 the cells result in a binary 
+# coding with 0 = no occurence on the plot and 1 = occurence on the plot
+nevsky_org_df[, 14:89][nevsky_org_df[, 14:89] > 1] <- 1
 
 # endemic <- c("DRA_DRA", "LOT_JAC", "ZIN_PER")
 # which(colnames(nevsky_org_df) %in% endemic)

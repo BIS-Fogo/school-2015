@@ -10,12 +10,13 @@ library(corrplot)
 library(rgdal)
 library(MuMIn)
 library(sp)
+library(vegan)
 
 
 ### Read data ##################################################################
 # Read meta-data
 nevsky_org_meta <- read.table("IE_2007_pontos_esp_meta.csv", 
-                              sep = "\t", dec = ".", header = TRUE,
+                              sep = ";", dec = ".", header = TRUE,
                               stringsAsFactors = FALSE)
 str(nevsky_org_meta)
 
@@ -60,10 +61,37 @@ nevsky_org_df$SPE_INT <-
 nevsky_org_df$SPE_ALL <- 
   rowSums(nevsky_org_df[, which(colnames(nevsky_org_df) %in% species_all)])
 
+### Define some helper variables for subsetting the data frame #################
 # Helper variable defining independent and dependent variables (i.e. column names)
 var_independent <- names(nevsky_org_df)[c(3:10, 12:13)]
-var_dependent <- names(nevsky_org_df)[92:95]
+var_dependent <- names(nevsky_org_df)[93:96]
 var_species <- names(nevsky_org_df)[14:89]
+
+# Colum names of present species
+var_species_present <- 
+  names(nevsky_org_df[, var_species])[colSums(nevsky_org_df[, var_species]) > 0]
+
+# Colum names of non-present species
+var_species_not_present <- 
+  names(nevsky_org_df[, var_species])[colSums(nevsky_org_df[, var_species]) == 0]
+
+# Plots with at least one species
+var_plots_with_species <- which(rowSums((nevsky_org_df[, var_species]>0))>0)
+
+# Add additional column with more general location information
+nevsky_org_df$LOCATION <- substr(nevsky_org_df$NO_ID, 1, 2)
+
+
+### Some answers to some questions #############################################
+# Which species occure in location XY?
+
+locations <- unique(nevsky_org_df$LOCATION)
+for(i in locations){
+  print(i)
+  species <- names(nevsky_org_df[, var_species])[colSums(nevsky_org_df[nevsky_org_df$LOCATION == i, var_species]) > 1]
+  print(species)
+}
+
 
 
 ### Analyse correlations #######################################################
@@ -122,6 +150,7 @@ inter <- lapply(seq(nrow(nevsky_org_df)), function(x){
   return(act_error)
 })
 linear_model_mean_error <- mean(unlist(inter))
+linear_model_mean_error
 
 
 ### Multiple linear regression model ###########################################
@@ -161,7 +190,7 @@ inter <- lapply(seq(nrow(nevsky_org_df)), function(x){
   return(act_error)
 })
 linear_opt_mult_model_mean_error <- mean(unlist(inter))
-
+linear_opt_mult_model_mean_error
 
 
 ### Simple non-linear regression analysis ######################################
@@ -214,3 +243,20 @@ for(i in species_common){
   lines(values_x[,1], exp(glm_model_y_est) / (1 + exp(glm_model_y_est)))
 }
 par(user)
+
+
+### Ordination analysis ########################################################
+# Compute an ordination analysis
+ordination <- cca(nevsky_org_df[var_plots_with_species, var_species_present] ~ 
+                    DECL_GR + EXP_GR + N + E_ + ALT + SOLO + 
+                    MAT_ORG + GRAU_UTIL + GRAU_EROS, 
+                  data = nevsky_org_df[var_plots_with_species,])
+# Visualize the ordination analysis
+plot(ordination,
+     display = c("species", "sites", "cn"),
+     scaling = 3,
+     type = "text")
+
+# Compute some confidence statistics using an ananylsis of variance
+variance_analysis <- anova(ordination, by = "terms", permu = 999)
+variance_analysis

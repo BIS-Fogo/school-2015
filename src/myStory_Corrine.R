@@ -38,3 +38,26 @@ cor_matrix <- cor(corrine_org[, c(5, 7, 9, 11)])
 corrplot(cor_matrix)
 
 
+dev.off()
+boxplot(corrine_org[, "S"] ~ corrine_org$Year, notch = TRUE,
+        ylab = "Species richness")
+boxplot(corrine_org[, "N"] ~ corrine_org$Year, notch = TRUE)
+
+power <- 0.125
+# plot the boxplot without y axis tics and lables
+boxplot(corrine_org[, "N"]**power ~ corrine_org$Year, notch = TRUE, yaxt = "n")
+
+# get maximum value as power of 10 (by counting digits of the max value)
+# and create a vector of these powers starting with 10^0
+ndigits <- nchar(as.character(as.integer(max(corrine_org[, "N"]))))
+ylabls <- 10^(0:ndigits)
+print(ylabls)
+
+# transform the power of then values above analogous to the data values
+ytics <- ylabls**power
+
+# add axis tics and labels to the plot
+axis(2, at=ytics, labels=ylabls, las=2, tck=-.01, cex.axis=0.6)
+
+
+

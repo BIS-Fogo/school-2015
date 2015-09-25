@@ -63,6 +63,7 @@ nevsky_org_df$SPE_ALL <-
 # Helper variable defining independent and dependent variables (i.e. column names)
 var_independent <- names(nevsky_org_df)[c(3:10, 12:13)]
 var_dependent <- names(nevsky_org_df)[92:95]
+var_species <- names(nevsky_org_df)[14:89]
 
 
 ### Analyse correlations #######################################################
@@ -181,6 +182,7 @@ abline(linear_model, col = "red")
 
 
 ### Distribution of species along the elevational gradient #####################
+# Static example using one explicitly selected species  
 plot(LAV_ROT ~ ALT, data = nevsky_org_df)
 
 glm_model <- glm(LAV_ROT ~ ALT + I(ALT**2), data = nevsky_org_df, family = "binomial")
@@ -190,3 +192,25 @@ glm_model_y_est <- predict(glm_model, values_x)
 plot(LAV_ROT ~ ALT, data = nevsky_org_df)
 lines(values_x[,1], exp(glm_model_y_est) / (1 + exp(glm_model_y_est)))
 
+
+# Loop implementation for common species (e.g. 9 most common ones)
+# Compute species occurence across all plots (i.e. occupancy)
+species_occupancy <- colSums(nevsky_org_df[, var_species])
+species_common <- names(sort(species_occupancy, decreasing = TRUE)[1:9])
+species_common <- which(names(nevsky_org_df) %in% species_common)
+
+
+# Loop over each common species and produce a binary plot including a glm fit
+# Set plot environment to fit the plots (save current one first)
+user<-par(no.readonly=T)
+par(mar=c(4,4,1,1),las=1,cex=0.9,mfcol=c(3,3))
+values_x <- data.frame(ALT = seq(min(nevsky_org_df$ALT), max(nevsky_org_df$ALT)))
+for(i in species_common){
+  glm_model <- glm(nevsky_org_df[, i] ~ ALT + I(ALT**2), 
+                   data = nevsky_org_df, family = "binomial")
+  glm_model_y_est <- predict(glm_model, values_x)
+  plot(nevsky_org_df[, i] ~ ALT, data = nevsky_org_df,
+       ylab = names(nevsky_org_df)[i], xlab = "Elevation (m)")
+  lines(values_x[,1], exp(glm_model_y_est) / (1 + exp(glm_model_y_est)))
+}
+par(user)

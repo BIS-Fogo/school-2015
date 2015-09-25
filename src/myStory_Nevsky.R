@@ -7,6 +7,8 @@ setwd("D:/active/bis-fogo/school2015/myStory/Nevsky")
 
 ### Load libraries #############################################################
 library(corrplot)
+library(dismo)  # Google maps
+library(latticeExtra)
 library(rgdal)
 library(MuMIn)
 library(sp)
@@ -252,7 +254,7 @@ ordination <- cca(nevsky_org_df[var_plots_with_species, var_species_present] ~
                     MAT_ORG + GRAU_UTIL + GRAU_EROS, 
                   data = nevsky_org_df[var_plots_with_species,])
 # Visualize the ordination analysis
-png("ordination.png", height = 1000, width = 1000, pointsize = 24)
+pngl("ordination.png", height = 1000, width = 1000, pointsize = 24)
 plot(ordination,
      display = c("species", "sites", "cn"),
      scaling = 3,
@@ -262,3 +264,75 @@ dev.off()
 # Compute some confidence statistics using an ananylsis of variance
 variance_analysis <- anova(ordination, by = "terms", permu = 999)
 variance_analysis
+
+
+### Google overlay #############################################################
+# Read polygon template for Fogo
+fogo_template <- readOGR("fogo_polygon.shp", layer = "fogo_polygon")
+fogo=gmap(fogo_template, type="satellite", rgb = FALSE)
+
+# Convert data frame back to GIS shape data set
+nevsky_org_df_new_shp <- nevsky_org_df
+coordinates(nevsky_org_df_new_shp) <- ~coords.x1+coords.x2
+projection(nevsky_org_df_new_shp) <- projection(nevsky_org_shp)
+
+fogo=gmap(nevsky_org_df_new_shp, type="satellite", rgb = FALSE)
+
+
+# Reproject data set to Google maps geometry
+nevsky_org_df_new_shp <- spTransform(nevsky_org_df_new_shp, CRS(projection(fogo)))
+
+
+
+plot(fogo)
+plot(nevsky_org_df_new_shp, 
+     col = rev(heat.colors(11))[nevsky_org_df_new_shp@data$SPE_ALL], pch = 16,
+     add = TRUE)
+legend("topleft",inset=c(0.09,0.05),col=(rev(heat.colors(11))), legend=seq(0,10), pch=16)
+
+
+
+
+# classes <- seq(min(nevsky_org_df_new_shp@data$SPE_ALL), 
+#                max(nevsky_org_df_new_shp@data$SPE_ALL), 
+#                length.out = 11)
+# vector_classes <- cut(nevsky_org_df_new_shp@data$SPE_ALL, classes)
+# vector_colors <- colorRampPalette(brewer.pal(11,"Greens"))(11)
+# 
+# 
+# min <- max(mean(getValues(fogo)) - sd(getValues(fogo)), 0)
+# max <- mean(getValues(fogo)) + sd(getValues(fogo))
+# 
+# breaks <- seq(min, max, length.out = 256)
+# 
+# plt <- spplot(fogo, col.regions = gray.colors(256), at = breaks, 
+#               key = list(space = 'left', text = list(levels(vector_classes)), 
+#                          points = list(pch = 21, cex = 2, fill = vector_colors)),
+#               panel = function(...){
+#                 panel.levelplot(...)
+#               })
+# 
+# orl <- spplot(nevsky_org_df_new_shp, zcol = "SPE_ALL", col.regions = vector_colors, 
+#               cuts = classes)
+# 
+# plt + as.layer(orl)
+# 
+# 
+# 
+# plt <- spplot(fogo, col.regions = gray.colors(256), at = breaks,
+#               key = list(space = 'left', text = list(levels(vector_classes)), 
+#                          points = list(pch = 21, cex = 2, fill = vector_colors)),
+#               colorkey=list(space="right"),
+#               panel = function(...){
+#                 panel.levelplot(...)
+#                 panel.abline(h = yat, v = xat, col = "grey0", lwd = 0.8, lty = 3) 
+#               },
+#               scales = list(x = list(at = xat),
+#                             y = list(at = yat)))
+# 
+# 
+# orl <- spplot(vector_utm, zcol = "COVRG", col.regions = vector_colors, 
+#               cuts = classes)
+# 
+# plt + as.layer(orl)
+# 

@@ -252,10 +252,12 @@ ordination <- cca(nevsky_org_df[var_plots_with_species, var_species_present] ~
                     MAT_ORG + GRAU_UTIL + GRAU_EROS, 
                   data = nevsky_org_df[var_plots_with_species,])
 # Visualize the ordination analysis
+png("ordination.png", height = 1000, width = 1000, pointsize = 24)
 plot(ordination,
      display = c("species", "sites", "cn"),
      scaling = 3,
      type = "text")
+dev.off()
 
 # Compute some confidence statistics using an ananylsis of variance
 variance_analysis <- anova(ordination, by = "terms", permu = 999)

@@ -267,11 +267,9 @@ variance_analysis
 
 
 ### Google overlay #############################################################
-# Read polygon template for Fogo
-# fogo_template <- readOGR("fogo_polygon.shp", layer = "fogo_polygon")
-# fogo=gmap(fogo_template, type="satellite", rgb = FALSE)
-
 # Convert data frame back to GIS shape data set
+# Just for your information: the cape verde national projection has the 
+# code "EPSG:4826" and the proj4 string can be found here https://epsg.io/4826
 nevsky_org_df_new_shp <- nevsky_org_df
 coordinates(nevsky_org_df_new_shp) <- ~coords.x1+coords.x2
 projection(nevsky_org_df_new_shp) <- projection(nevsky_org_shp)
@@ -281,8 +279,6 @@ fogo <- gmap(nevsky_org_df_new_shp, type="satellite", rgb = FALSE)
 # Reproject data set to Google maps geometry
 nevsky_org_df_new_shp <- spTransform(nevsky_org_df_new_shp, CRS(projection(fogo)))
 
-
-
 plot(fogo)
 plot(nevsky_org_df_new_shp, 
      col = rev(heat.colors(11))[nevsky_org_df_new_shp@data$SPE_ALL], pch = 16,
@@ -290,48 +286,29 @@ plot(nevsky_org_df_new_shp,
 legend("topleft",inset=c(0.09,0.05),col=(rev(heat.colors(11))), legend=seq(0,10), pch=16)
 
 
+### Alternative using spplot functionality
+fogo_stack <- gmap(nevsky_org_df_new_shp, type="satellite", rgb = TRUE)
+fogo <- fogo_stack[[2]]
+classes <- seq(min(nevsky_org_df_new_shp@data$SPE_ALL), 
+               max(nevsky_org_df_new_shp@data$SPE_ALL), 
+               length.out = 11)
+vector_classes <- cut(nevsky_org_df_new_shp@data$SPE_ALL, classes)
+vector_colors <- colorRampPalette(brewer.pal(11,"Greens"))(11)
 
 
-# classes <- seq(min(nevsky_org_df_new_shp@data$SPE_ALL), 
-#                max(nevsky_org_df_new_shp@data$SPE_ALL), 
-#                length.out = 11)
-# vector_classes <- cut(nevsky_org_df_new_shp@data$SPE_ALL, classes)
-# vector_colors <- colorRampPalette(brewer.pal(11,"Greens"))(11)
-# 
-# 
-# min <- max(mean(getValues(fogo)) - sd(getValues(fogo)), 0)
-# max <- mean(getValues(fogo)) + sd(getValues(fogo))
-# 
-# breaks <- seq(min, max, length.out = 256)
-# 
-# plt <- spplot(fogo, col.regions = gray.colors(256), at = breaks, 
-#               key = list(space = 'left', text = list(levels(vector_classes)), 
-#                          points = list(pch = 21, cex = 2, fill = vector_colors)),
-#               panel = function(...){
-#                 panel.levelplot(...)
-#               })
-# 
-# orl <- spplot(nevsky_org_df_new_shp, zcol = "SPE_ALL", col.regions = vector_colors, 
-#               cuts = classes)
-# 
-# plt + as.layer(orl)
-# 
-# 
-# 
-# plt <- spplot(fogo, col.regions = gray.colors(256), at = breaks,
-#               key = list(space = 'left', text = list(levels(vector_classes)), 
-#                          points = list(pch = 21, cex = 2, fill = vector_colors)),
-#               colorkey=list(space="right"),
-#               panel = function(...){
-#                 panel.levelplot(...)
-#                 panel.abline(h = yat, v = xat, col = "grey0", lwd = 0.8, lty = 3) 
-#               },
-#               scales = list(x = list(at = xat),
-#                             y = list(at = yat)))
-# 
-# 
-# orl <- spplot(vector_utm, zcol = "COVRG", col.regions = vector_colors, 
-#               cuts = classes)
-# 
-# plt + as.layer(orl)
-# 
+min <- max(mean(getValues(fogo)) - sd(getValues(fogo)), 0)
+max <- mean(getValues(fogo)) + sd(getValues(fogo))
+
+breaks <- seq(min, max, length.out = 256)
+
+plt <- spplot(fogo, col.regions = gray.colors(256), at = breaks, 
+              key = list(space = 'left', text = list(levels(vector_classes)), 
+                         points = list(pch = 21, cex = 2, fill = vector_colors)),
+              panel = function(...){
+                panel.levelplot(...)
+              })
+
+orl <- spplot(nevsky_org_df_new_shp, zcol = "SPE_ALL", col.regions = vector_colors, 
+              cuts = classes)
+
+plt + as.layer(orl)

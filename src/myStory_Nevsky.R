@@ -268,16 +268,15 @@ variance_analysis
 
 ### Google overlay #############################################################
 # Read polygon template for Fogo
-fogo_template <- readOGR("fogo_polygon.shp", layer = "fogo_polygon")
-fogo=gmap(fogo_template, type="satellite", rgb = FALSE)
+# fogo_template <- readOGR("fogo_polygon.shp", layer = "fogo_polygon")
+# fogo=gmap(fogo_template, type="satellite", rgb = FALSE)
 
 # Convert data frame back to GIS shape data set
 nevsky_org_df_new_shp <- nevsky_org_df
 coordinates(nevsky_org_df_new_shp) <- ~coords.x1+coords.x2
 projection(nevsky_org_df_new_shp) <- projection(nevsky_org_shp)
 
-fogo=gmap(nevsky_org_df_new_shp, type="satellite", rgb = FALSE)
-
+fogo <- gmap(nevsky_org_df_new_shp, type="satellite", rgb = FALSE)
 
 # Reproject data set to Google maps geometry
 nevsky_org_df_new_shp <- spTransform(nevsky_org_df_new_shp, CRS(projection(fogo)))
